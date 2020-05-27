@@ -11,7 +11,8 @@ def import_company():
     name = df['companyname'].values
 
     nodes = []
-    for eid, name in tqdm(zip(eid, name)):
+    data = list(zip(eid, name))
+    for eid, name in tqdm(data):
         node = Node('company', name=name, eid=eid)
         nodes.append(node)
 
@@ -24,7 +25,8 @@ def import_person():
     name = df['personname'].values
 
     nodes = []
-    for eid, name in tqdm(zip(pid, name)):
+    data = list(zip(pid, name))
+    for eid, name in tqdm(data):
         node = Node('person', name=name, pid=str(eid))
         nodes.append(node)
 
@@ -91,7 +93,8 @@ def import_relation():
     pid = df['pid'].values
     post = df['post'].values
     relations = []
-    for e, p, po in tqdm(zip(eid, pid, post)):
+    data = list(zip(eid, pid, post))
+    for e, p, po in tqdm(data):
         company = matcher.match('company', eid=e).first()
         person = matcher.match('person', pid=str(p)).first()
         if company is not None and person is not None:
@@ -105,7 +108,8 @@ def import_relation():
     eid = df['eid'].values
     name = df['industry'].values
     relations = []
-    for e, n in tqdm(zip(eid, name)):
+    data = list(zip(eid, name))
+    for e, n in tqdm(data):
         company = matcher.match('company', eid=e).first()
         industry = matcher.match('industry', name=str(n)).first()
         if company is not None and industry is not None:
@@ -119,7 +123,8 @@ def import_relation():
     eid = df['eid'].values
     name = df['assign'].values
     relations = []
-    for e, n in tqdm(zip(eid, name)):
+    data = list(zip(eid, name))
+    for e, n in tqdm(data):
         company = matcher.match('company', eid=e).first()
         assign = matcher.match('assign', name=str(n)).first()
         if company is not None and assign is not None:
@@ -133,7 +138,8 @@ def import_relation():
     eid = df['eid'].values
     name = df['violations'].values
     relations = []
-    for e, n in tqdm(zip(eid, name)):
+    data = list(zip(eid, name))
+    for e, n in tqdm(data):
         company = matcher.match('company', eid=e).first()
         violations = matcher.match('violations', name=str(n)).first()
         if company is not None and violations is not None:
@@ -147,7 +153,8 @@ def import_relation():
     eid = df['eid'].values
     name = df['bond'].values
     relations = []
-    for e, n in tqdm(zip(eid, name)):
+    data = list(zip(eid, name))
+    for e, n in tqdm(data):
         company = matcher.match('company', eid=e).first()
         bond = matcher.match('bond', name=str(n)).first()
         if company is not None and bond is not None:
@@ -161,7 +168,8 @@ def import_relation():
     eid = df['eid'].values
     rel = df['dishonesty'].values
     relations = []
-    for e, r in tqdm(zip(eid, rel)):
+    data = list(zip(eid, rel))
+    for e, r in tqdm(data):
         company = matcher.match('company', eid=e).first()
         dishonesty = matcher.match('dishonesty', name='失信').first()
         if company is not None and dishonesty is not None:
@@ -173,6 +181,59 @@ def import_relation():
 
     graph.create(Subgraph(relationships=relations))
     print('import company-dishonesty relation succeeded')
+
+
+def import_company_relation():
+    df = pd.read_csv('company_data/公司-供应商.csv')
+    matcher = NodeMatcher(graph)
+    eid1 = df['eid1'].values
+    eid2 = df['eid2'].values
+    relations = []
+    data = list(zip(eid1, eid2))
+    for e1, e2 in tqdm(data):
+        if pd.notna(e1) and pd.notna(e2) and e1 != e2:
+            company1 = matcher.match('company', eid=e1).first()
+            company2 = matcher.match('company', eid=e2).first()
+
+            if company1 is not None and company2 is not None:
+                relations.append(Relationship(company1, '供应商', company2))
+
+    graph.create(Subgraph(relationships=relations))
+    print('import company-supplier relation succeeded')
+
+    df = pd.read_csv('company_data/公司-担保.csv')
+    matcher = NodeMatcher(graph)
+    eid1 = df['eid1'].values
+    eid2 = df['eid2'].values
+    relations = []
+    data = list(zip(eid1, eid2))
+    for e1, e2 in tqdm(data):
+        if pd.notna(e1) and pd.notna(e2) and e1 != e2:
+            company1 = matcher.match('company', eid=e1).first()
+            company2 = matcher.match('company', eid=e2).first()
+
+            if company1 is not None and company2 is not None:
+                relations.append(Relationship(company1, '担保', company2))
+
+    graph.create(Subgraph(relationships=relations))
+    print('import company-guarantee relation succeeded')
+
+    df = pd.read_csv('company_data/公司-客户.csv')
+    matcher = NodeMatcher(graph)
+    eid1 = df['eid1'].values
+    eid2 = df['eid2'].values
+    relations = []
+    data = list(zip(eid1, eid2))
+    for e1, e2 in tqdm(data):
+        if pd.notna(e1) and pd.notna(e2):
+            company1 = matcher.match('company', eid=e1).first()
+            company2 = matcher.match('company', eid=e2).first()
+
+            if company1 is not None and company2 is not None:
+                relations.append(Relationship(company1, '客户', company2))
+
+    graph.create(Subgraph(relationships=relations))
+    print('import company-customer relation succeeded')
 
 
 def delete_relation():
@@ -187,15 +248,16 @@ def delete_node():
 
 def import_data():
     import_company()
+    import_company_relation()
+
     import_person()
     import_industry()
     import_assign()
     import_violations()
     import_bond()
     import_dishonesty()
-    print('import node succeeded')
+
     import_relation()
-    print('import relation succeeded')
 
 
 def delete_data():
