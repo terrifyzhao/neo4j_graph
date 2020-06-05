@@ -2,7 +2,7 @@ from py2neo import Node, Subgraph, Graph, Relationship, NodeMatcher
 from tqdm import tqdm
 import pandas as pd
 
-# graph = Graph("http://192.168.1.97:19081", auth=("neo4j", "hemei_kg_neo4j213"))
+# gnn = Graph("http://192.168.1.97:19081", auth=("neo4j", "hemei_kg_neo4j213"))
 graph = Graph("http://localhost:11004", auth=("neo4j", "qwer"))
 
 def import_company():
