@@ -1,0 +1,246 @@
+from py2neo import Node, Subgraph, Graph, Relationship, NodeMatcher
+from tqdm import tqdm
+import pandas as pd
+
+# gnn = Graph("http://192.168.1.97:19081", auth=("neo4j", "hemei_kg_neo4j213"))
+graph = Graph("http://localhost:11004", auth=("neo4j", "qwer"))
+
+
+def import_company():
+    df = pd.read_csv('company_data/公司.csv')
+    df_industry = pd.read_csv('company_data/公司-行业.csv')
+    df = pd.merge(df, df_industry, on='eid', how='left')
+
+    df_assign = pd.read_csv('company_data/公司-分红.csv')
+    df = pd.merge(df, df_assign, on='eid', how='left')
+
+    df_violation = pd.read_csv('company_data/公司-违规.csv')
+    df = pd.merge(df, df_violation, on='eid', how='left')
+
+    df_bond = pd.read_csv('company_data/公司-债券.csv')
+    df = pd.merge(df, df_bond, on='eid', how='left')
+
+    df_dishonesty = pd.read_csv('company_data/公司-失信.csv')
+    df = pd.merge(df, df_dishonesty, on='eid', how='left')
+
+    df.drop(axis=1, columns=['dishonesty_x'], inplace=True)
+    df.to_csv('company.csv', index=False, encoding='utf_8_sig')
+
+    exit(0)
+
+    eid = df['eid'].values
+    name = df['companyname'].values
+
+    nodes = []
+    data = list(zip(eid, name))
+    for eid, name in tqdm(data):
+        node = Node('company', name=name, eid=eid, property={})
+        nodes.append(node)
+
+    graph.create(Subgraph(nodes))
+
+
+def import_person():
+    df = pd.read_csv('company_data/人物.csv')
+    pid = df['personcode'].values
+    name = df['personname'].values
+
+    nodes = []
+    data = list(zip(pid, name))
+    for eid, name in tqdm(data):
+        node = Node('person', name=name, pid=str(eid))
+        nodes.append(node)
+
+    graph.create(Subgraph(nodes))
+
+
+def import_dishonesty():
+    node = Node('dishonesty', name='失信')
+    graph.create(node)
+
+
+def import_relation():
+    df = pd.read_csv('company_data/公司-人物.csv')
+    matcher = NodeMatcher(graph)
+    eid = df['eid'].values
+    pid = df['pid'].values
+    post = df['post'].values
+    relations = []
+    data = list(zip(eid, pid, post))
+    for e, p, po in tqdm(data):
+        company = matcher.match('company', eid=e).first()
+        person = matcher.match('person', pid=str(p)).first()
+        if company is not None and person is not None:
+            relations.append(Relationship(company, po, person))
+
+    graph.create(Subgraph(relationships=relations))
+    print('import company-person relation succeeded')
+
+
+def import_company_attribute():
+    df = pd.read_csv('company_data/公司-行业.csv')
+    matcher = NodeMatcher(graph)
+    eid = df['eid'].values
+    name = df['industry'].values
+    relations = []
+    data = list(zip(eid, name))
+    for e, n in tqdm(data):
+        company = matcher.match('company', eid=e).first()
+        industry = matcher.match('industry', name=str(n)).first()
+        if company is not None and industry is not None:
+            relations.append(Relationship(company, '行业类型', industry))
+
+    graph.create(Subgraph(relationships=relations))
+    print('import company-industry relation succeeded')
+
+    df = pd.read_csv('company_data/公司-分红.csv')
+    matcher = NodeMatcher(graph)
+    eid = df['eid'].values
+    name = df['assign'].values
+    relations = []
+    data = list(zip(eid, name))
+    for e, n in tqdm(data):
+        company = matcher.match('company', eid=e).first()
+        assign = matcher.match('assign', name=str(n)).first()
+        if company is not None and assign is not None:
+            relations.append(Relationship(company, '分红方式', assign))
+
+    graph.create(Subgraph(relationships=relations))
+    print('import company-assign relation succeeded')
+
+    df = pd.read_csv('company_data/公司-违规.csv')
+    matcher = NodeMatcher(graph)
+    eid = df['eid'].values
+    name = df['violations'].values
+    relations = []
+    data = list(zip(eid, name))
+    for e, n in tqdm(data):
+        company = matcher.match('company', eid=e).first()
+        violations = matcher.match('violations', name=str(n)).first()
+        if company is not None and violations is not None:
+            relations.append(Relationship(company, '违规类型', violations))
+
+    graph.create(Subgraph(relationships=relations))
+    print('import company-violations relation succeeded')
+
+    df = pd.read_csv('company_data/公司-债券.csv')
+    matcher = NodeMatcher(graph)
+    eid = df['eid'].values
+    name = df['bond'].values
+    relations = []
+    data = list(zip(eid, name))
+    for e, n in tqdm(data):
+        company = matcher.match('company', eid=e).first()
+        bond = matcher.match('bond', name=str(n)).first()
+        if company is not None and bond is not None:
+            relations.append(Relationship(company, '债券类型', bond))
+
+    graph.create(Subgraph(relationships=relations))
+    print('import company-bond relation succeeded')
+
+    df = pd.read_csv('company_data/公司-失信.csv')
+    matcher = NodeMatcher(graph)
+    eid = df['eid'].values
+    rel = df['dishonesty'].values
+    relations = []
+    data = list(zip(eid, rel))
+    for e, r in tqdm(data):
+        company = matcher.match('company', eid=e).first()
+        dishonesty = matcher.match('dishonesty', name='失信').first()
+        if company is not None and dishonesty is not None:
+            if pd.notna(r):
+                if int(r) == 0:
+                    relations.append(Relationship(company, '无', dishonesty))
+                elif int(r) == 1:
+                    relations.append(Relationship(company, '有', dishonesty))
+
+    graph.create(Subgraph(relationships=relations))
+    print('import company-dishonesty relation succeeded')
+
+
+def import_company_relation():
+    df = pd.read_csv('company_data/公司-供应商.csv')
+    matcher = NodeMatcher(graph)
+    eid1 = df['eid1'].values
+    eid2 = df['eid2'].values
+    relations = []
+    data = list(zip(eid1, eid2))
+    for e1, e2 in tqdm(data):
+        if pd.notna(e1) and pd.notna(e2) and e1 != e2:
+            company1 = matcher.match('company', eid=e1).first()
+            company2 = matcher.match('company', eid=e2).first()
+
+            if company1 is not None and company2 is not None:
+                relations.append(Relationship(company1, '供应商', company2))
+
+    graph.create(Subgraph(relationships=relations))
+    print('import company-supplier relation succeeded')
+
+    df = pd.read_csv('company_data/公司-担保.csv')
+    matcher = NodeMatcher(graph)
+    eid1 = df['eid1'].values
+    eid2 = df['eid2'].values
+    relations = []
+    data = list(zip(eid1, eid2))
+    for e1, e2 in tqdm(data):
+        if pd.notna(e1) and pd.notna(e2) and e1 != e2:
+            company1 = matcher.match('company', eid=e1).first()
+            company2 = matcher.match('company', eid=e2).first()
+
+            if company1 is not None and company2 is not None:
+                relations.append(Relationship(company1, '担保', company2))
+
+    graph.create(Subgraph(relationships=relations))
+    print('import company-guarantee relation succeeded')
+
+    df = pd.read_csv('company_data/公司-客户.csv')
+    matcher = NodeMatcher(graph)
+    eid1 = df['eid1'].values
+    eid2 = df['eid2'].values
+    relations = []
+    data = list(zip(eid1, eid2))
+    for e1, e2 in tqdm(data):
+        if pd.notna(e1) and pd.notna(e2):
+            company1 = matcher.match('company', eid=e1).first()
+            company2 = matcher.match('company', eid=e2).first()
+
+            if company1 is not None and company2 is not None:
+                relations.append(Relationship(company1, '客户', company2))
+
+    graph.create(Subgraph(relationships=relations))
+    print('import company-customer relation succeeded')
+
+
+def delete_relation():
+    cypher = 'match ()-[r]-() delete r'
+    graph.run(cypher)
+
+
+def delete_node():
+    cypher = 'match (n) delete n'
+    graph.run(cypher)
+
+
+def import_data():
+    import_company()
+    # import_company_relation()
+    #
+    # import_person()
+    # import_industry()
+    # import_assign()
+    # import_violations()
+    # import_bond()
+    # import_dishonesty()
+    #
+    # import_relation()
+
+
+def delete_data():
+    delete_relation()
+    delete_node()
+    print('delete data succeeded')
+
+
+if __name__ == '__main__':
+    # delete_data()
+    import_data()
