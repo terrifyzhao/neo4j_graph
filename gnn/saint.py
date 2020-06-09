@@ -2,9 +2,9 @@ from torch_geometric.data import Data
 from py2neo import Graph
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv
 import pandas as pd
 import numpy as np
+from torch_geometric.nn import SAGEConv
 
 # 读取所有的关系
 graph = Graph("http://localhost:11004", auth=("neo4j", "qwer"))
@@ -97,28 +97,36 @@ print(dataset)
 
 
 class Net(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, hidden_channels):
         super(Net, self).__init__()
-        self.conv1 = GCNConv(35, 64, cached=True)
-        self.conv2 = GCNConv(64, 2, cached=True)
+        in_channels = 35
+        out_channels = 2
+        self.conv1 = SAGEConv(in_channels, hidden_channels)
+        self.conv2 = SAGEConv(hidden_channels, hidden_channels)
+        self.conv3 = SAGEConv(hidden_channels, hidden_channels)
+        self.lin = torch.nn.Linear(3 * hidden_channels, out_channels)
 
-        self.reg_params = self.conv1.parameters()
-        self.non_reg_params = self.conv2.parameters()
+    def set_aggr(self, aggr):
+        self.conv1.aggr = aggr
+        self.conv2.aggr = aggr
+        self.conv3.aggr = aggr
 
     def forward(self):
-        x, edge_index, edge_weight = data.x, data.edge_index, data.edge_attr
-        x = F.relu(self.conv1(x, edge_index, edge_weight))
-        # x = F.dropout(x, training=self.training)
-        x = self.conv2(x, edge_index, edge_weight)
-        return F.log_softmax(x, dim=1)
+        x0, edge_index, edge_weight = data.x, data.edge_index, data.edge_attr
+        x1 = F.relu(self.conv1(x0, edge_index, edge_weight))
+        x1 = F.dropout(x1, p=0.2, training=self.training)
+        x2 = F.relu(self.conv2(x1, edge_index, edge_weight))
+        x2 = F.dropout(x2, p=0.2, training=self.training)
+        x3 = F.relu(self.conv3(x2, edge_index, edge_weight))
+        x3 = F.dropout(x3, p=0.2, training=self.training)
+        x = torch.cat([x1, x2, x3], dim=-1)
+        x = self.lin(x)
+        return x.log_softmax(dim=-1)
 
 
 device = torch.device('cpu')
-model, data = Net().to(device), dataset.to(device)
-optimizer = torch.optim.Adam([
-    dict(params=model.reg_params, weight_decay=5e-4),
-    dict(params=model.non_reg_params, weight_decay=0)
-], lr=0.001)
+model, data = Net(64).to(device), dataset.to(device)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 
 def train():

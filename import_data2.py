@@ -2,8 +2,8 @@ from py2neo import Node, Subgraph, Graph, Relationship, NodeMatcher
 from tqdm import tqdm
 import pandas as pd
 
-# gnn = Graph("http://192.168.1.97:19081", auth=("neo4j", "hemei_kg_neo4j213"))
-graph = Graph("http://localhost:11004", auth=("neo4j", "qwer"))
+graph = Graph("http://192.168.1.97:19081", auth=("neo4j", "hemei_kg_neo4j213"))
+# graph = Graph("http://localhost:11004", auth=("neo4j", "qwer"))
 
 
 def import_company():
@@ -24,20 +24,30 @@ def import_company():
     df = pd.merge(df, df_dishonesty, on='eid', how='left')
 
     df.drop(axis=1, columns=['dishonesty_x'], inplace=True)
-    df.to_csv('company.csv', index=False, encoding='utf_8_sig')
-
-    exit(0)
-
-    eid = df['eid'].values
-    name = df['companyname'].values
 
     nodes = []
-    data = list(zip(eid, name))
-    for eid, name in tqdm(data):
-        node = Node('company', name=name, eid=eid, property={})
+    for row in tqdm(df.values):
+        eid = row[0]
+        name = row[1]
+        industry = None if pd.isna(row[2]) else row[2]
+        assign = None if pd.isna(row[3]) else row[3]
+        violation = None if pd.isna(row[4]) else row[4]
+        bond = None if pd.isna(row[5]) else row[5]
+        dishonesty = None if pd.isna(row[6]) else row[6]
+
+        node = Node('company',
+                    eid=eid,
+                    name=name,
+                    industry=industry,
+                    assign=assign,
+                    violation=violation,
+                    bond=bond,
+                    dishonesty=dishonesty)
         nodes.append(node)
 
     graph.create(Subgraph(nodes))
+
+    print('import company node succeeded')
 
 
 def import_person():
@@ -52,6 +62,7 @@ def import_person():
         nodes.append(node)
 
     graph.create(Subgraph(nodes))
+    print('import person node succeeded')
 
 
 def import_dishonesty():
@@ -223,16 +234,9 @@ def delete_node():
 
 def import_data():
     import_company()
-    # import_company_relation()
-    #
-    # import_person()
-    # import_industry()
-    # import_assign()
-    # import_violations()
-    # import_bond()
-    # import_dishonesty()
-    #
-    # import_relation()
+    import_company_relation()
+    import_person()
+    import_relation()
 
 
 def delete_data():
@@ -242,5 +246,5 @@ def delete_data():
 
 
 if __name__ == '__main__':
-    # delete_data()
+    delete_data()
     import_data()
