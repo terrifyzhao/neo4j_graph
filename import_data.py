@@ -2,8 +2,8 @@ from py2neo import Node, Subgraph, Graph, Relationship, NodeMatcher
 from tqdm import tqdm
 import pandas as pd
 
-# gnn = Graph("http://192.168.1.97:19081", auth=("neo4j", "hemei_kg_neo4j213"))
-graph = Graph("http://localhost:11004", auth=("neo4j", "qwer"))
+graph = Graph("http://192.168.50.179:7474", auth=("neo4j", "qwer"))
+
 
 def import_company():
     df = pd.read_csv('company_data/公司.csv')
@@ -81,9 +81,9 @@ def import_bond():
     graph.create(Subgraph(nodes))
 
 
-def import_dishonesty():
-    node = Node('dishonesty', name='失信')
-    graph.create(node)
+# def import_dishonesty():
+#     node = Node('dishonesty', name='失信')
+#     graph.create(node)
 
 
 def import_relation():
@@ -163,24 +163,24 @@ def import_relation():
     graph.create(Subgraph(relationships=relations))
     print('import company-bond relation succeeded')
 
-    df = pd.read_csv('company_data/公司-失信.csv')
-    matcher = NodeMatcher(graph)
-    eid = df['eid'].values
-    rel = df['dishonesty'].values
-    relations = []
-    data = list(zip(eid, rel))
-    for e, r in tqdm(data):
-        company = matcher.match('company', eid=e).first()
-        dishonesty = matcher.match('dishonesty', name='失信').first()
-        if company is not None and dishonesty is not None:
-            if pd.notna(r):
-                if int(r) == 0:
-                    relations.append(Relationship(company, '无', dishonesty))
-                elif int(r) == 1:
-                    relations.append(Relationship(company, '有', dishonesty))
-
-    graph.create(Subgraph(relationships=relations))
-    print('import company-dishonesty relation succeeded')
+    # df = pd.read_csv('company_data/公司-失信.csv')
+    # matcher = NodeMatcher(graph)
+    # eid = df['eid'].values
+    # rel = df['dishonesty'].values
+    # relations = []
+    # data = list(zip(eid, rel))
+    # for e, r in tqdm(data):
+    #     company = matcher.match('company', eid=e).first()
+    #     dishonesty = matcher.match('dishonesty', name='失信').first()
+    #     if company is not None and dishonesty is not None:
+    #         if pd.notna(r):
+    #             if int(r) == 0:
+    #                 relations.append(Relationship(company, '无', dishonesty))
+    #             elif int(r) == 1:
+    #                 relations.append(Relationship(company, '有', dishonesty))
+    #
+    # graph.create(Subgraph(relationships=relations))
+    # print('import company-dishonesty relation succeeded')
 
 
 def import_company_relation():
@@ -255,7 +255,7 @@ def import_data():
     import_assign()
     import_violations()
     import_bond()
-    import_dishonesty()
+    # import_dishonesty()
 
     import_relation()
 
