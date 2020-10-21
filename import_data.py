@@ -1,6 +1,7 @@
 from py2neo import Node, Subgraph, Graph, Relationship, NodeMatcher
 from tqdm import tqdm
 import pandas as pd
+import numpy as np
 
 graph = Graph("http://192.168.50.179:7474", auth=("neo4j", "qwer"))
 
@@ -13,7 +14,8 @@ def import_company():
     nodes = []
     data = list(zip(eid, name))
     for eid, name in tqdm(data):
-        node = Node('company', name=name, eid=eid)
+        profit = np.random.randint(100000, 100000000, 1)[0]
+        node = Node('company', name=name, profit=int(profit), eid=eid)
         nodes.append(node)
 
     graph.create(Subgraph(nodes))
@@ -27,7 +29,8 @@ def import_person():
     nodes = []
     data = list(zip(pid, name))
     for eid, name in tqdm(data):
-        node = Node('person', name=name, pid=str(eid))
+        age = np.random.randint(20, 70, 1)[0]
+        node = Node('person', name=name, age=int(age), pid=str(eid))
         nodes.append(node)
 
     graph.create(Subgraph(nodes))
@@ -267,5 +270,7 @@ def delete_data():
 
 
 if __name__ == '__main__':
+    profit = np.random.randint(100000, 100000000, 10).tolist()
+
     delete_data()
     import_data()
