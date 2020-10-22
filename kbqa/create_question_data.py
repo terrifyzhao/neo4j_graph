@@ -13,9 +13,9 @@ def create_attribute_question():
 
     for c in company:
         c = c[0].strip()
-        question = f"{c}的收益是多少"
+        question = f"{c}的收益"
         questions.append(question)
-        question = f"{c}收入"
+        question = f"{c}的收入"
         questions.append(question)
 
     for p in person:
