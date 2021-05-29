@@ -7,16 +7,16 @@ import numpy as np
 from torch_geometric.nn import SAGEConv
 
 # 读取所有的关系
-graph = Graph("http://localhost:11004", auth=("neo4j", "qwer"))
+graph = Graph("http://localhost:7474", auth=("neo4j", "qwer"))
 
 
 def create_edge(node_dic):
-    cypher = 'MATCH p=(n:company)-[r]->(m:company) RETURN id(n),id(m)'
+    cypher = 'MATCH p=(n:company)-[r]->(m:company) RETURN n.name,m.name'
     res = graph.run(cypher)
     df_res = res.to_data_frame()
 
-    node1_id = list(map(lambda x: node_dic[x], df_res['id(n)'].values))
-    node2_id = list(map(lambda x: node_dic[x], df_res['id(m)'].values))
+    node1_id = list(map(lambda x: node_dic[x], df_res['n.name'].values))
+    node2_id = list(map(lambda x: node_dic[x], df_res['m.name'].values))
 
     # 构建边
     edge_index = torch.tensor([node1_id, node2_id], dtype=torch.long)
@@ -25,42 +25,22 @@ def create_edge(node_dic):
 
 
 def create_node():
-    cypher = 'MATCH (n) return id(n), properties(n), labels(n)'
+    cypher = 'MATCH (n) return n.name, labels(n)'
     res = graph.run(cypher)
     df_res = res.to_data_frame()
 
-    df_res['labels(n)'].values.tolist()
+    df_pro = pd.read_csv('../company.csv')
+    df = pd.concat([df_res, df_pro],
+                   axis=1,
+                   keys=['n.name', 'companyname'],
+                   join='outer')
 
-    return df_res['id(n)'].values.tolist(), process_properties(df_res['properties(n)'])
+    y = df['companyname']['dishonesty_y']
 
+    df_x = df['companyname']
+    x = pd.get_dummies(df_x[['industry', 'assign', 'violations', 'bond']])
 
-def process_properties(data):
-    industry = []
-    assign = []
-    violation = []
-    bond = []
-    dishonesty = []
-    for row in data:
-        industry.append(row.get('industry', np.nan))
-        assign.append(row.get('assign', np.nan))
-        violation.append(row.get('violation', np.nan))
-        bond.append(row.get('bond', np.nan))
-        dishonesty.append(row.get('dishonesty', np.nan))
-    df = pd.DataFrame({'industry': industry,
-                       'assign': assign,
-                       'violation': violation,
-                       'bond': bond,
-                       'dishonesty': dishonesty})
-    # 缺省值填充
-    df['industry'].fillna('未知', inplace=True)
-    df['assign'].fillna('未知', inplace=True)
-    df['violation'].fillna('未知', inplace=True)
-    df['bond'].fillna('未知', inplace=True)
-
-    y = df['dishonesty']
-    x = pd.get_dummies(df[['industry', 'assign', 'violation', 'bond']])
-
-    return x, y
+    return df['n.name']['n.name'], x, y
 
 
 def create_label():
@@ -71,7 +51,7 @@ def create_label():
 
 
 def create_graph_data():
-    node, (x, y) = create_node()
+    node, x, y = create_node()
     node_dic = {}
     for i in node:
         node_dic[i] = len(node_dic)
@@ -99,7 +79,7 @@ print(dataset)
 class Net(torch.nn.Module):
     def __init__(self, hidden_channels):
         super(Net, self).__init__()
-        in_channels = 35
+        in_channels = 31
         out_channels = 2
         self.conv1 = SAGEConv(in_channels, hidden_channels)
         self.conv2 = SAGEConv(hidden_channels, hidden_channels)
@@ -121,7 +101,7 @@ class Net(torch.nn.Module):
         x3 = F.dropout(x3, p=0.2, training=self.training)
         x = torch.cat([x1, x2, x3], dim=-1)
         x = self.lin(x)
-        return x.log_softmax(dim=-1)
+        return x
 
 
 device = torch.device('cpu')
@@ -133,7 +113,7 @@ def train():
     model.train()
     optimizer.zero_grad()
     logits = model()
-    loss = F.nll_loss(logits[data.train_mask], data.y[data.train_mask])
+    loss = F.cross_entropy(logits[data.train_mask], data.y[data.train_mask])
     pred = logits[data.train_mask].max(1)[1]
     acc = pred.eq(data.y[data.train_mask]).sum().item() / data.train_mask.sum().item()
     loss.backward()

@@ -3,11 +3,12 @@ from kbqa.data_process import *
 import ahocorasick
 from py2neo import Graph
 import re
+import traceback
 
 model = torch.load('text_cnn.p')
 model.eval()
 
-graph = Graph("http://192.168.50.179:7474", auth=("neo4j", "qwer"))
+graph = Graph("http://localhost:7474", auth=("neo4j", "qwer"))
 company = graph.run('MATCH (n:company) RETURN n.name as name').to_ndarray()
 person = graph.run('MATCH (n:person) RETURN n.name as name').to_ndarray()
 relation = graph.run('MATCH ()-[r]-() RETURN distinct type(r)').to_ndarray()
@@ -139,10 +140,12 @@ def kbqa(text):
     return res
 
 
-while 1:
-    try:
-        text = input('text:')
-        res = kbqa(text)
-        print(res)
-    except:
-        print('error')
+if __name__ == '__main__':
+
+    while 1:
+        try:
+            text = input('text:')
+            res = kbqa(text)
+            print(res)
+        except:
+            print(traceback.format_exc())

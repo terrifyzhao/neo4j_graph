@@ -1,7 +1,7 @@
 import ahocorasick
 from py2neo import Graph
 
-graph = Graph("http://192.168.50.179:7474", auth=("neo4j", "qwer"))
+graph = Graph("http://localhost:7474", auth=("neo4j", "qwer"))
 company = graph.run('MATCH (n:company) RETURN n.name as name').to_ndarray()
 relation = graph.run('MATCH ()-[r]-() RETURN distinct type(r)').to_ndarray()
 
@@ -16,8 +16,8 @@ for key in enumerate(relation):
 ac_company.make_automaton()
 ac_relation.make_automaton()
 
-haystack = '浙江东阳东欣房地产开发有限公司的客户的供应商'
-# haystack = '衡水中南锦衡房地产有限公司的债券类型'
+# haystack = '浙江东阳东欣房地产开发有限公司的客户的供应商'
+haystack = '衡水中南锦衡房地产有限公司的债券类型'
 # haystack = '临沂金丰公社农业服务有限公司的分红方式'
 print('question:', haystack)
 

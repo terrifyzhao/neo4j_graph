@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 
 # 读取所有的关系
-graph = Graph("http://localhost:11004", auth=("neo4j", "qwer"))
+graph = Graph("http://localhost:7687", auth=("neo4j", "qwer"))
 
 
 def create_edge(node_dic):
